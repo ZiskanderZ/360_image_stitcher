@@ -3,25 +3,29 @@ import os
 import cv2
 import random
 import numpy as np
+import random
 
 # считаем фотографии
-photos_path = r'unstitched\all_3'
-bottom, middle, top = [], [], []
-shape = int(len(os.listdir(photos_path)) / 2) + 1
+photos_path = r'photos'
+bottom, top = [], []
+dim_arr = np.array(list(map(lambda x: x.split('_')[1], os.listdir(photos_path))))
+bottom_len, top_len = np.unique(dim_arr, return_counts=True)[1]
+shape = max(bottom_len, top_len) + 1
 for i in range(1, shape):
-    bottom.append(os.path.join(photos_path, f'{i}_1.jpg'))
-    middle.append(os.path.join(photos_path, f'{i}_2.jpg'))
+    if i <= bottom_len:
+        bottom.append(os.path.join(photos_path, f'{i}_1.jpg'))
+    if i <= top_len:
+        top.append(os.path.join(photos_path, f'{i}_2.jpg'))
 
 # зафиксируем сиды
 seed = 1
-import random
 random.seed(seed)
 np.random.seed(seed)
 cv2.setRNGSeed(seed)
 
 # объединим фотографии по горизонтали
 images = []
-for num, i in enumerate([bottom, middle]):
+for num, i in enumerate([bottom, top]):
     stitcher = Stitcher(medium_megapix=1, confidence_threshold=0.8, crop=True)
     panorama = stitcher.stitch(i)
     panorama = cv2.rotate(panorama, cv2.ROTATE_90_CLOCKWISE)
@@ -60,7 +64,7 @@ for k in range(3):
                 break
 
 # удалим ненужные края
-crop_img = clear_img[:, np.mean(clear_img[:, :, 0] == 0, axis=0) < 0.01, :]
+crop_img = clear_img[top_bound:bottom_bound, np.mean(clear_img[:, :, 0] == 0, axis=0) < 0.01, :]
 
 # сохраним результат
 cv2.imwrite('result.png', crop_img)
