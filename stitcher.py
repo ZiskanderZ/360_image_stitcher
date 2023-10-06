@@ -4,7 +4,7 @@ import random
 import numpy as np
 import cv2
 from stitching import Stitcher
-from set_params import photos_path, seed, params, intersection, intermediate_res
+from set_params import photos_path, seed, params, intersection, intermediate_res, add_percent
 
 # подготовим данные
 bottom, top = [], []
@@ -47,14 +47,26 @@ for i in range(2):
 
 # объединим фотографии по вертикали
 stitched_img = stitch(images, params)
-cv2.imwrite(f'preresult.png', stitched_img) if intermediate_res else 0
+cv2.imwrite(f'result_joined.png', stitched_img) if intermediate_res else 0
 
 # разделим пополам и объединим, нужно для точного совпадения краев
 half_shape = stitched_img.shape[1] // 2
 left_img = cv2.flip(stitched_img[:, :half_shape, :], 1)
 right_img = cv2.flip(stitched_img[:, half_shape:, :], 1)
 try:
+    params['wave_correct_kind'] = 'no'
     stitched_img = stitch([left_img, right_img], params)
-finally:
-    # сохраним результат
-    cv2.imwrite(f'result_{photos_path}.png', stitched_img)
+    cv2.imwrite(f'result_merged.png', stitched_img) if intermediate_res else 0
+except:
+    pass
+
+# добавим наверх и вниз дополнительный цвет
+add_part = int(stitched_img.shape[0] * add_percent)
+add_arr = np.zeros((add_part, stitched_img.shape[1], 3))
+add_arr_top, add_arr_bottom = add_arr.copy(), add_arr.copy()
+add_arr_top[:] = stitched_img[:add_part].mean(axis=0)
+add_arr_bottom[:] = stitched_img[add_part:].mean(axis=0)
+stitched_img = np.concatenate((add_arr_top, stitched_img, add_arr_bottom))
+
+# сохраним результат
+cv2.imwrite(f'result_{photos_path}.png', stitched_img)
