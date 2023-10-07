@@ -94,5 +94,5 @@ def fill_right_bound(image: np.array) -> np.array:
                         non_zeros = non_zeros[:-1]
                 else:
                     break
-    
+    clear_img = cv2.flip(clear_img, 1)
     return clear_img
