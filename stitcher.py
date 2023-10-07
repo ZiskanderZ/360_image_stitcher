@@ -3,8 +3,8 @@ import random
 import random
 import numpy as np
 import cv2
-from stitching import Stitcher
-from set_params import photos_path, seed, params, intersection, intermediate_res, add_percent
+from utils import stitch, rotate_image, crop_and_resize, fill_right_bound
+from set_params import photos_path, seed, params, intersection, intermediate_res, add_percent, rotate_angle, half_shape
 
 # подготовим данные
 bottom, top = [], []
@@ -21,11 +21,6 @@ for i in range(1, shape):
 random.seed(seed)
 np.random.seed(seed)
 cv2.setRNGSeed(seed)
-
-def stitch(imgs, params):
-    stitcher = Stitcher(**params)
-    stitched_img = stitcher.stitch(imgs)
-    return stitched_img
 
 # объединим фотографии по горизонтали разделив пополам
 parts = []
@@ -47,18 +42,25 @@ for i in range(2):
 
 # объединим фотографии по вертикали
 stitched_img = stitch(images, params)
-cv2.imwrite(f'result_joined.png', stitched_img) if intermediate_res else 0
+cv2.imwrite(f'joined.png', stitched_img) if intermediate_res else 0
 
-# разделим пополам и объединим, нужно для точного совпадения краев
-half_shape = stitched_img.shape[1] // 2
-left_img = cv2.flip(stitched_img[:, :half_shape, :], 1)
-right_img = cv2.flip(stitched_img[:, half_shape:, :], 1)
 try:
+    # попробуем соединить левую и правую части, нужно для точного совпадения краев
+    left_img = cv2.flip(stitched_img[:, :half_shape, :], 1)
+    right_img = cv2.flip(stitched_img[:, -half_shape:, :], 1)
     params['wave_correct_kind'] = 'no'
-    stitched_img = stitch([left_img, right_img], params)
-    cv2.imwrite(f'result_merged.png', stitched_img) if intermediate_res else 0
+    bound = stitch([left_img, right_img], params).shape[1] - half_shape * 2
+    stitched_img = stitched_img[:, :bound, :]
+    cv2.imwrite(f'merged.png', stitched_img) if intermediate_res else 0
 except:
     pass
+
+# обработаем границы
+stitched_img = rotate_image(stitched_img, rotate_angle)
+cv2.imwrite(f'rotate.png', stitched_img) if intermediate_res else 0
+stitched_img = crop_and_resize(stitched_img)
+cv2.imwrite(f'cropped.png', stitched_img) if intermediate_res else 0
+stitched_img = fill_right_bound(stitched_img)
 
 # добавим наверх и вниз дополнительный цвет
 add_part = int(stitched_img.shape[0] * add_percent)
